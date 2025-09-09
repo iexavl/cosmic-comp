@@ -136,10 +136,13 @@ impl AtspiEiState {
 
     /// Key grab exists for mods, key, with active virtual mods
     pub fn has_key_grab(&self, mods: u32, key: Keycode) -> bool {
+        self.get_key_grab(mods, key).is_some()
+    }
+    pub fn get_key_grab(&self, mods: u32, key: Keycode) -> Option<&AtspiKeyGrab> {
         self.clients
             .values()
             .flat_map(|client| &client.key_grabs)
-            .any(|grab| {
+            .find(|grab| {
                 grab.mods == mods
                     && grab.virtual_mods == self.active_virtual_mods
                     && grab.key == key

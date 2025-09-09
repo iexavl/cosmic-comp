@@ -106,6 +106,9 @@ impl SupressedKeys {
     fn add(&self, keysym: &KeysymHandle, token: impl Into<Option<RegistrationToken>>) {
         self.0.borrow_mut().push((keysym.raw_code(), token.into()));
     }
+    fn add_raw(&self, keysym: &Keycode) {
+        self.0.borrow_mut().push((keysym.clone(), None));
+    }
 
     fn filter(&self, keysym: &KeysymHandle) -> Option<Vec<RegistrationToken>> {
         let mut keys = self.0.borrow_mut();
@@ -1790,9 +1793,6 @@ impl State {
                 "active virtual mods: {:?}",
                 self.common.atspi_ei.active_virtual_mods
             );
-            seat.supressed_keys().add(&handle, None);
-
-            return FilterResult::Intercept(None);
         }
 
         // Skip released events for initially surpressed keys
@@ -1819,12 +1819,17 @@ impl State {
             return FilterResult::Intercept(None);
         }
 
-        if self.common.atspi_ei.has_keyboard_grab()
-            || self
-                .common
-                .atspi_ei
-                .has_key_grab(modifiers.serialized.layout_effective, event.key_code())
+        if self.common.atspi_ei.has_keyboard_grab() {
+            return FilterResult::Intercept(None);
+        }
+        if let Some(keygrab) = self
+            .common
+            .atspi_ei
+            .get_key_grab(modifiers.serialized.layout_effective, event.key_code())
         {
+            for key in &keygrab.virtual_mods {
+                seat.supressed_keys().add_raw(key);
+            }
             return FilterResult::Intercept(None);
         }
 
